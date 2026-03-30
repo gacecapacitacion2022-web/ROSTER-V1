@@ -1,0 +1,450 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>GACE - Control de Capacitación v4.9</title>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.5.25/jspdf.plugin.autotable.min.js"></script>
+    <link href="https://fonts.googleapis.com/icon?family=Material+Icons" rel="stylesheet">
+    <style>
+        :root { --azul-claro: #e3f2fd; --azul-medio: #2196F3; --azul-oscuro: #1565C0; --blanco: #ffffff; }
+        body { font-family: 'Segoe UI', sans-serif; margin: 0; padding: 20px; background-color: #f0f4f8; }
+        .container { max-width: 1000px; margin: auto; }
+        .nav-tabs { display: flex; gap: 10px; margin-bottom: -2px; }
+        .tab-btn { padding: 12px 25px; cursor: pointer; background: #cfd8dc; border: none; border-radius: 10px 10px 0 0; font-weight: bold; display: flex; align-items: center; gap: 5px; }
+        .tab-btn.active { background: var(--blanco); color: var(--azul-oscuro); border-top: 4px solid var(--azul-medio); }
+        .card { background: var(--blanco); padding: 30px; border-radius: 0 15px 15px 15px; box-shadow: 0 4px 15px rgba(0,0,0,0.05); margin-bottom: 25px; }
+        h2 { color: var(--azul-oscuro); text-align: center; }
+        h4 { border-bottom: 2px solid var(--azul-claro); padding-bottom: 10px; color: var(--azul-medio); display: flex; align-items: center; gap: 10px; }
+        .form-group { display: flex; flex-wrap: wrap; gap: 20px; margin-bottom: 20px; }
+        .field { flex: 1; min-width: 200px; }
+        label { font-weight: 600; display: flex; align-items: center; gap: 8px; margin-bottom: 8px; font-size: 0.9em; color: #546e7a; }
+        label .material-icons { font-size: 18px; color: var(--azul-medio); }
+        input, select, textarea { width: 100%; padding: 12px; border: 1px solid #b0bec5; border-radius: 8px; box-sizing: border-box; }
+        .temario-box { background: var(--azul-claro); padding: 15px; border-radius: 8px; border-left: 5px solid var(--azul-medio); margin: 20px 0; min-height: 40px; }
+        .table-wrapper { width: 100%; overflow-x: auto; margin-top: 20px; border-radius: 8px; }
+        table { width: 100%; border-collapse: collapse; min-width: 600px; }
+        th { background-color: #ffd700; padding: 12px; text-align: left; color: #000; }
+        td { border-bottom: 1px solid #eceff1; padding: 12px; }
+        .btn { padding: 10px 15px; cursor: pointer; border: none; border-radius: 8px; font-weight: bold; display: flex; align-items: center; gap: 5px; justify-content: center; }
+        .btn-save { background: #4caf50; color: white; }
+        .btn-confirm { background: #ff9800; color: white; margin-top: 20px; width: 100%; font-size: 1.1em; display: none; height: 50px; }
+        .btn-new-from-edit { background: var(--azul-oscuro); color: white; margin-top: 10px; width: 100%; font-size: 1.1em; display: none; height: 50px; }
+        .btn-clear { background: #90a4ae; color: white; }
+        .btn-pdf { background: var(--azul-oscuro); color: white; width: 100%; font-size: 1.1em; margin-top: 20px; height: 50px; }
+        .btn-edit { background: #2196F3; color: white; margin-right: 5px; padding: 5px 10px; font-size: 0.8em;}
+        .btn-borrar { background: #f44336; color: white; padding: 5px 10px; font-size: 0.8em;}
+        .canvas-style { border: 2px dashed #b0bec5; background: #fff; cursor: crosshair; touch-action: none; width: 100%; max-width: 500px; height: 150px; border-radius: 8px; }
+        .tab-content { display: none; }
+        .tab-content.active { display: block; }
+        .history-item { padding:15px; border-bottom:1px solid #eee; display:flex; justify-content:space-between; align-items:center; }
+        .history-actions { display:flex; gap:10px; }
+        #sync-loader { font-size: 0.8em; color: var(--azul-medio); font-weight: bold; display: none; }
+    </style>
+</head>
+<body>
+
+<div class="container">
+    <h2>SISTEMA GACE - REGISTRO DE CAPACITACIÓN</h2>
+
+    <div class="nav-tabs">
+        <button class="tab-btn active" onclick="openTab('registro')"><i class="material-icons">edit_note</i>REGISTRO</button>
+        <button class="tab-btn" onclick="openTab('catalogo')"><i class="material-icons">library_books</i>CURSOS</button>
+        <button class="tab-btn" onclick="openTab('historial')"><i class="material-icons">history</i>HISTORIAL</button>
+    </div>
+
+    <div id="registro" class="tab-content active">
+        <div class="card">
+            <h4><i class="material-icons">assignment</i>Datos de la Sesión</h4>
+            <input type="hidden" id="idRegistroHistorial">
+            
+            <div class="form-group">
+                <div class="field"><label><i class="material-icons">school</i>Curso:</label><select id="selectCurso" onchange="actualizarTemario(); autoSave();"></select></div>
+                <div class="field"><label><i class="material-icons">business</i>Planta:</label><input type="text" id="planta" oninput="autoSave()" placeholder="Ej. Bosch Zaragoza"></div>
+                <div class="field"><label><i class="material-icons">schedule</i>Turno:</label>
+                    <select id="turno" onchange="autoSave()">
+                        <option value="" disabled selected>Seleccione Turno</option>
+                        <option value="1er Turno">1er Turno</option>
+                        <option value="2do Turno">2do Turno</option>
+                    </select>
+                </div>
+            </div>
+            <div class="form-group">
+                <div class="field"><label><i class="material-icons">person</i>Instructor:</label><input type="text" id="instructor" oninput="autoSave()" placeholder="Nombre del Instructor"></div>
+                <div class="field"><label><i class="material-icons">timer</i>Duración:</label><select id="duracion" onchange="autoSave()"></select></div>
+                <div class="field"><label><i class="material-icons">today</i>Fecha:</label><input type="date" id="fecha" onchange="autoSave()"></div>
+            </div>
+            <div class="temario-box"><strong>Temario:</strong> <br><span id="textoTemario"></span></div>
+            <label><i class="material-icons">gesture</i>Firma del Instructor:</label>
+            <canvas id="canvas-instructor" class="canvas-style"></canvas><br>
+            <button class="btn btn-clear" onclick="limpiarCanvas('canvas-instructor'); autoSave();"><i class="material-icons">auto_fix_high</i>Limpiar Firma</button>
+        </div>
+
+        <div class="card">
+            <h4><i class="material-icons">group_add</i>Participantes</h4>
+            <div class="form-group">
+                <input type="hidden" id="editParticipanteId">
+                <div class="field" style="flex:2"><label><i class="material-icons">badge</i>Nombre Completo:</label><input type="text" id="p_nombre" placeholder="JUAN AGUILAR"></div>
+                <div class="field"><label><i class="material-icons">tag</i>No. De Orden:</label><input type="text" id="p_orden" placeholder="2626"></div>
+                <div class="field"><label><i class="material-icons">work</i>Puesto:</label><input type="text" id="p_puesto" placeholder="GUARDIA"></div>
+            </div>
+            <label><i class="material-icons">gesture</i>Firma del Participante:</label>
+            <canvas id="canvas-participante" class="canvas-style"></canvas>
+            <div style="margin-top: 15px; display:flex; gap:10px; justify-content: flex-end;">
+                <button class="btn btn-clear" onclick="limpiarCanvas('canvas-participante')"><i class="material-icons">auto_fix_high</i>Borrar Firma</button>
+                <button class="btn btn-save" id="btnAgregarP" onclick="agregarRegistro()"><i class="material-icons">person_add</i>+ Agregar a Lista</button>
+            </div>
+            <div class="table-wrapper">
+                <table id="tablaRegistros">
+                    <thead><tr><th>No.</th><th>Nombre</th><th>Orden</th><th>Puesto</th><th>Firma</th><th>Acciones</th></tr></thead>
+                    <tbody></tbody>
+                </table>
+            </div>
+        </div>
+        
+        <button id="btnGenerarNormal" class="btn btn-pdf" onclick="confirmarYGenerar()"><i class="material-icons">picture_as_pdf</i>💾 FINALIZAR Y GENERAR PDF</button>
+        <button id="btnConfirmarEdicion" class="btn btn-confirm" onclick="confirmarActualizacionHistorial()"><i class="material-icons">save</i>✅ ACTUALIZAR REGISTRO ACTUAL</button>
+        <button id="btnGenerarComoNuevo" class="btn btn-new-from-edit" onclick="confirmarYGenerar()"><i class="material-icons">library_add</i>📂 GENERAR COMO NUEVO REGISTRO</button>
+    </div>
+
+    <div id="catalogo" class="tab-content">
+        <div class="card">
+            <h4><i class="material-icons">book</i>Gestión de Cursos <span id="sync-loader">(Sincronizando con Nube...)</span></h4>
+            <input type="hidden" id="idEditCurso">
+            <label><i class="material-icons">title</i>Nombre del Curso:</label><input type="text" id="admNombre" style="margin-bottom:15px;">
+            <label><i class="material-icons">notes</i>Contenido del Temario:</label><textarea id="admContenido" rows="4"></textarea><br><br>
+            <button class="btn btn-save" onclick="guardarCursoAdmin()"><i class="material-icons">save</i>Guardar Curso en Nube</button>
+            <button class="btn btn-clear" onclick="limpiarAdmin()"><i class="material-icons">close</i>Cancelar</button>
+            <div id="listaCursosAdmin" style="margin-top:20px;"></div>
+        </div>
+    </div>
+
+    <div id="historial" class="tab-content">
+        <div class="card">
+            <h4><i class="material-icons">folder</i>Registros Guardados</h4>
+            <div id="logHistorial"></div>
+        </div>
+    </div>
+</div>
+
+<script>
+    const { jsPDF } = window.jspdf;
+    
+    // URL DE TU APPS SCRIPT
+    const WEB_APP_URL = "https://script.google.com/macros/s/AKfycbzPOSz_sqbQNlnRPm7VYGGJ8wydhR9h5JKtP3eLgTL6s9GvMKhx5ui9PjAdjw1DMWbY/exec";
+
+    let registrosAsistencia = [];
+    let baseCursos = JSON.parse(localStorage.getItem('gace_cursos_v3')) || [{ id: 1, nombre: "Seguridad en la cadena de suministro: revisión de contenedores C-TPAT", contenido: "¿Qué es el C-TPAT?, origen, beneficios, estándares de seguridad C-TPAT, qué buscar en una revisión de tráiler, herramientas para la revisión, 17 puntos de inspección, revisión de sello de seguridad, seguridad agrícola, revisión del exterior de la caja, técnicas de revisión, revisión del interior de la caja, medidas básicas de una caja de tráiler, norma ISO 17712, técnica de V.V.T.T, procedimiento en caso de sospecha de carga contaminada y secciones de la caja." }];
+    let historialCompleto = JSON.parse(localStorage.getItem('gace_historial_data')) || [];
+
+    async function init() {
+        const selDur = document.getElementById('duracion');
+        for(let i=2; i<=10; i++) {
+            let opt = document.createElement('option'); opt.value = i + " horas"; opt.text = i + " horas"; selDur.add(opt);
+        }
+        document.getElementById('fecha').value = new Date().toISOString().split('T')[0];
+        setupCanvas('canvas-instructor'); setupCanvas('canvas-participante');
+        
+        cargarSelect(); 
+        await sincronizarCursosNube(); // Sincroniza al iniciar
+        
+        setTimeout(loadOffline, 100);
+    }
+
+    async function sincronizarCursosNube() {
+        document.getElementById('sync-loader').style.display = 'inline';
+        try {
+            const response = await fetch(WEB_APP_URL);
+            const datosNube = await response.json();
+            if(datosNube && datosNube.length > 0) {
+                baseCursos = datosNube;
+                localStorage.setItem('gace_cursos_v3', JSON.stringify(baseCursos));
+                cargarSelect();
+                if(document.getElementById('catalogo').classList.contains('active')) renderAdmin();
+            }
+        } catch (e) { console.error("Error de sincronización:", e); }
+        document.getElementById('sync-loader').style.display = 'none';
+    }
+
+    function setupCanvas(id) {
+        const cv = document.getElementById(id); const cx = cv.getContext('2d');
+        cv.width = 500; cv.height = 150;
+        let dibujando = false;
+        const getPos = (e) => {
+            const rect = cv.getBoundingClientRect();
+            const clientX = e.touches ? e.touches[0].clientX : e.clientX;
+            const clientY = e.touches ? e.touches[0].clientY : e.clientY;
+            return { x: (clientX - rect.left) * (cv.width / rect.width), y: (clientY - rect.top) * (cv.height / rect.height) };
+        };
+        const start = (e) => { e.preventDefault(); dibujando = true; cx.beginPath(); const p = getPos(e); cx.moveTo(p.x, p.y); };
+        const move = (e) => { if(!dibujando) return; e.preventDefault(); const p = getPos(e); cx.lineTo(p.x, p.y); cx.stroke(); };
+        const stop = () => { if(dibujando) { dibujando = false; autoSave(); } };
+        cv.addEventListener('mousedown', start); cv.addEventListener('mousemove', move); window.addEventListener('mouseup', stop);
+        cv.addEventListener('touchstart', start, {passive: false}); cv.addEventListener('touchmove', move, {passive: false}); cv.addEventListener('touchend', stop);
+        cx.lineWidth = 2; cx.lineCap = 'round'; cx.strokeStyle = '#000';
+    }
+
+    function limpiarCanvas(id) { document.getElementById(id).getContext('2d').clearRect(0, 0, 500, 150); }
+
+    function autoSave() {
+        const datos = {
+            planta: document.getElementById('planta').value,
+            instructor: document.getElementById('instructor').value,
+            turno: document.getElementById('turno').value,
+            duracion: document.getElementById('duracion').value,
+            fecha: document.getElementById('fecha').value,
+            cursoId: document.getElementById('selectCurso').value,
+            lista: registrosAsistencia,
+            firmaIns: document.getElementById('canvas-instructor').toDataURL()
+        };
+        localStorage.setItem('gace_temp_v3', JSON.stringify(datos));
+    }
+
+    function loadOffline() {
+        const d = JSON.parse(localStorage.getItem('gace_temp_v3'));
+        if(d) {
+            document.getElementById('planta').value = d.planta || "";
+            document.getElementById('instructor').value = d.instructor || "";
+            document.getElementById('turno').value = d.turno || "";
+            document.getElementById('duracion').value = d.duracion || "2 horas";
+            if(d.fecha) document.getElementById('fecha').value = d.fecha;
+            document.getElementById('selectCurso').value = d.cursoId || "";
+            registrosAsistencia = d.lista || [];
+            if(d.firmaIns && d.firmaIns.length > 1000) {
+                const img = new Image();
+                img.onload = () => document.getElementById('canvas-instructor').getContext('2d').drawImage(img, 0, 0);
+                img.src = d.firmaIns;
+            }
+            renderTabla();
+        }
+        actualizarTemario();
+    }
+
+    function generarPDF(d, esNuevo) {
+        const doc = new jsPDF();
+        const limite = 20;
+        const totalPaginas = Math.ceil(d.participantes.length / limite);
+
+        for (let i = 0; i < totalPaginas; i++) {
+            if (i > 0) doc.addPage();
+            doc.setFont("helvetica", "bold"); doc.setFontSize(16);
+            doc.text("GRUPO ÁGUILAS - GACE", 105, 15, { align: "center" });
+            doc.setFontSize(10); doc.text("Registro de Capacitación de Personal", 105, 22, { align: "center" });
+            
+            let yPos = 35;
+            doc.setFont("helvetica", "bold"); doc.text("Planta: ", 15, yPos);
+            doc.setFont("helvetica", "normal"); doc.text(d.planta, 30, yPos);
+            doc.setFont("helvetica", "bold"); doc.text("Curso: ", 110, yPos);
+            doc.setFont("helvetica", "normal"); doc.text(doc.splitTextToSize(d.curso.nombre, 75), 125, yPos);
+
+            yPos += 10;
+            doc.setFont("helvetica", "bold"); doc.text("Instructor: ", 15, yPos);
+            doc.setFont("helvetica", "normal"); doc.text(d.instructor, 35, yPos);
+            doc.setFont("helvetica", "bold"); doc.text("Duración: ", 110, yPos);
+            doc.setFont("helvetica", "normal"); doc.text(d.duracion, 130, yPos);
+            doc.setFont("helvetica", "bold"); doc.text("Fecha: ", 165, yPos);
+            doc.setFont("helvetica", "normal"); doc.text(d.fecha, 180, yPos);
+
+            yPos += 10;
+            doc.setFont("helvetica", "bold"); doc.setFontSize(9); doc.text("Contenido:", 15, yPos); 
+            doc.setFont("helvetica", "normal");
+            const lineasContenido = doc.splitTextToSize(d.curso.contenido, 155);
+            doc.text(lineasContenido, 35, yPos);
+            
+            const altoContenidoReal = (lineasContenido.length * 4); 
+            yPos += altoContenidoReal + 5; 
+
+            const legal = "El personal de seguridad de Grupo Águilas aceptamos que fuimos capacitados y adiestrados por el equipo GACE de Grupo Águilas y firmamos aceptando el recibir la calificación que nuestros capacitadores nos otorguen, considerando nuestro comportamiento y desempeño en el curso impartido.";
+            doc.setFontSize(9); doc.text(doc.splitTextToSize(legal, 180), 15, yPos);
+
+            const inicio = i * limite; const final = inicio + limite;
+            const bloque = d.participantes.slice(inicio, final);
+
+            doc.autoTable({
+                startY: yPos + 10,
+                head: [['No.', 'Nombre', 'No. De Orden', 'Puesto', 'Firma']],
+                body: bloque.map((p, idx) => [inicio + idx + 1, p.nombre, p.orden, p.puesto, '']),
+                headStyles: { fillColor: [255, 215, 0], textColor: [0, 0, 0], fontStyle: 'bold' },
+                styles: { fontSize: 8, minCellHeight: 9, font: "helvetica", fontStyle: 'normal' },
+                didDrawCell: (data) => {
+                    if (data.column.index === 4 && data.cell.section === 'body') {
+                        doc.addImage(bloque[data.row.index].firma, 'PNG', data.cell.x + 2, data.cell.y + 1, 14, 6);
+                    }
+                }
+            });
+
+            const yf = 285;
+            doc.addImage(d.firmaInstructor, 'PNG', 80, yf - 20, 50, 12);
+            doc.line(70, yf - 7, 140, yf - 7);
+            doc.setFontSize(9); doc.setFont("helvetica", "bold"); doc.text("Firma del instructor", 105, yf - 2, { align: "center" });
+        }
+        
+        const nombreArchivo = `ROSTER_${d.planta.toUpperCase()}_${d.turno.toUpperCase()}_${d.fecha.replace(/\//g,'-')}_${d.curso.nombre.toUpperCase()}.pdf`;
+        doc.save(nombreArchivo);
+        
+        if(esNuevo) guardarHistorial(d, nombreArchivo);
+    }
+
+    function guardarHistorial(d, nombreFile) {
+        historialCompleto.push({ id: Date.now(), nombreFile: nombreFile, data: d });
+        localStorage.setItem('gace_historial_data', JSON.stringify(historialCompleto));
+        resetearFormulario();
+        location.reload(); 
+    }
+
+    function cargarHistorialParaEditar(id) {
+        if(!confirm("¿Cargar esta lista para editarla?")) return;
+        const h = historialCompleto.find(x => x.id == id).data;
+        document.getElementById('idRegistroHistorial').value = id;
+        document.getElementById('planta').value = h.planta; document.getElementById('instructor').value = h.instructor;
+        document.getElementById('turno').value = h.turno; document.getElementById('duracion').value = h.duracion;
+        const partes = h.fecha.split('/'); document.getElementById('fecha').value = `${partes[2]}-${partes[1]}-${partes[0]}`;
+        document.getElementById('selectCurso').value = h.curso.id; registrosAsistencia = h.participantes;
+        limpiarCanvas('canvas-instructor');
+        const img = new Image(); img.onload = () => document.getElementById('canvas-instructor').getContext('2d').drawImage(img, 0, 0); img.src = h.firmaInstructor;
+        document.getElementById('btnGenerarNormal').style.display = 'none'; 
+        document.getElementById('btnConfirmarEdicion').style.display = 'block';
+        document.getElementById('btnGenerarComoNuevo').style.display = 'block';
+        renderTabla(); openTab('registro');
+    }
+
+    function confirmarActualizacionHistorial() {
+        const id = document.getElementById('idRegistroHistorial').value; const idx = historialCompleto.findIndex(x => x.id == id);
+        const fRaw = document.getElementById('fecha').value.split('-'); const fCorr = `${fRaw[2]}/${fRaw[1]}/${fRaw[0]}`;
+        const datosActualizados = {
+            planta: document.getElementById('planta').value, turno: document.getElementById('turno').value, fecha: fCorr,
+            instructor: document.getElementById('instructor').value, duracion: document.getElementById('duracion').value,
+            curso: baseCursos.find(x => x.id == document.getElementById('selectCurso').value),
+            participantes: JSON.parse(JSON.stringify(registrosAsistencia)), firmaInstructor: document.getElementById('canvas-instructor').toDataURL()
+        };
+        const nuevoNombre = `ROSTER_${datosActualizados.planta.toUpperCase()}_${datosActualizados.turno.toUpperCase()}_${datosActualizados.fecha.replace(/\//g,'-')}_${datosActualizados.curso.nombre.toUpperCase()}.pdf`;
+        historialCompleto[idx].data = datosActualizados;
+        historialCompleto[idx].nombreFile = nuevoNombre;
+        localStorage.setItem('gace_historial_data', JSON.stringify(historialCompleto));
+        alert("¡Registro original actualizado!"); resetearFormulario(); openTab('historial');
+    }
+
+    function resetearFormulario() {
+        document.getElementById('idRegistroHistorial').value = ""; document.getElementById('planta').value = ""; document.getElementById('instructor').value = "";
+        document.getElementById('turno').value = ""; document.getElementById('fecha').value = new Date().toISOString().split('T')[0];
+        registrosAsistencia = []; limpiarCanvas('canvas-instructor');
+        document.getElementById('btnGenerarNormal').style.display = 'block'; 
+        document.getElementById('btnConfirmarEdicion').style.display = 'none';
+        document.getElementById('btnGenerarComoNuevo').style.display = 'none';
+        renderTabla(); localStorage.removeItem('gace_temp_v3');
+    }
+
+    function agregarRegistro() {
+        const n = document.getElementById('p_nombre').value;
+        const editId = document.getElementById('editParticipanteId').value;
+        if(!n) return alert("Nombre requerido");
+        const nuevo = { id: editId ? Number(editId) : Date.now(), nombre: n.toUpperCase(), orden: document.getElementById('p_orden').value, puesto: document.getElementById('p_puesto').value.toUpperCase(), firma: document.getElementById('canvas-participante').toDataURL() };
+        if(editId) {
+            const idx = registrosAsistencia.findIndex(x => x.id == editId);
+            registrosAsistencia[idx] = nuevo;
+            document.getElementById('btnAgregarP').innerHTML = '<i class="material-icons">person_add</i>+ Agregar a Lista';
+            document.getElementById('editParticipanteId').value = "";
+        } else {
+            registrosAsistencia.push(nuevo);
+        }
+        document.getElementById('p_nombre').value = ""; document.getElementById('p_orden').value = ""; document.getElementById('p_puesto').value = "";
+        limpiarCanvas('canvas-participante'); renderTabla(); autoSave();
+    }
+
+    function renderTabla() { document.querySelector('#tablaRegistros tbody').innerHTML = registrosAsistencia.map((r, i) => `<tr><td>${i+1}</td><td>${r.nombre}</td><td>${r.orden}</td><td>${r.puesto}</td><td><img src="${r.firma}" height="30"></td><td><button class="btn btn-edit" onclick="editarParticipante(${r.id})">E</button><button class="btn btn-borrar" onclick="borrarR(${r.id})">X</button></td></tr>`).join(''); }
+    function editarParticipante(id) { const p = registrosAsistencia.find(x => x.id == id); document.getElementById('editParticipanteId').value = p.id; document.getElementById('p_nombre').value = p.nombre; document.getElementById('p_orden').value = p.orden; document.getElementById('p_puesto').value = p.puesto; document.getElementById('btnAgregarP').innerText = "Actualizar"; const img = new Image(); img.onload = () => { limpiarCanvas('canvas-participante'); document.getElementById('canvas-participante').getContext('2d').drawImage(img, 0, 0); }; img.src = p.firma; }
+    function borrarR(id) { registrosAsistencia = registrosAsistencia.filter(r => r.id !== id); renderTabla(); autoSave(); }
+    
+    function cargarSelect() { 
+        const s = document.getElementById('selectCurso'); 
+        const idActual = s.value;
+        s.innerHTML = baseCursos.map(c => `<option value="${c.id}">${c.nombre}</option>`).join(''); 
+        if(idActual) s.value = idActual;
+        actualizarTemario(); 
+    }
+
+    function actualizarTemario() { const c = baseCursos.find(x => x.id == document.getElementById('selectCurso').value); document.getElementById('textoTemario').innerText = c ? c.contenido : "Seleccione curso"; }
+    
+    function confirmarYGenerar() { if(registrosAsistencia.length === 0) return alert("Lista vacía"); if(!document.getElementById('turno').value) return alert("Seleccione el turno"); const fRaw = document.getElementById('fecha').value.split('-'); const fCorr = `${fRaw[2]}/${fRaw[1]}/${fRaw[0]}`; const d = { planta: document.getElementById('planta').value, turno: document.getElementById('turno').value, fecha: fCorr, instructor: document.getElementById('instructor').value, duracion: document.getElementById('duracion').value, curso: baseCursos.find(x => x.id == document.getElementById('selectCurso').value), participantes: JSON.parse(JSON.stringify(registrosAsistencia)), firmaInstructor: document.getElementById('canvas-instructor').toDataURL() }; generarPDF(d, true); }
+    
+    function openTab(id) { 
+        document.querySelectorAll('.tab-content').forEach(t => t.classList.remove('active')); 
+        document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active')); 
+        document.getElementById(id).classList.add('active'); 
+        document.querySelector(`button[onclick="openTab('${id}')"]`).classList.add('active');
+        if(id === 'catalogo') {
+            sincronizarCursosNube();
+            renderAdmin();
+        }
+        if(id === 'historial') renderHistorial(); 
+    }
+    
+    function redescargar(id) { generarPDF(historialCompleto.find(x => x.id == id).data, false); }
+    function eliminarHistorial(id) { if(confirm("¿Eliminar?")) { historialCompleto = historialCompleto.filter(h => h.id !== id); localStorage.setItem('gace_historial_data', JSON.stringify(historialCompleto)); renderHistorial(); } }
+
+    async function guardarCursoAdmin() {
+        const id = document.getElementById('idEditCurso').value || Date.now().toString();
+        const n = document.getElementById('admNombre').value;
+        const c = document.getElementById('admContenido').value;
+        if(!n) return alert("Nombre necesario");
+
+        const datos = { id, nombre: n, contenido: c, action: 'save' };
+        
+        // Efecto visual inmediato
+        document.getElementById('sync-loader').style.display = 'inline';
+        
+        await fetch(WEB_APP_URL, {
+            method: 'POST',
+            mode: 'no-cors',
+            body: JSON.stringify(datos)
+        });
+
+        alert("Curso guardado y sincronizado en la nube");
+        limpiarAdmin();
+        await sincronizarCursosNube();
+    }
+
+    function renderAdmin() { 
+        document.getElementById('listaCursosAdmin').innerHTML = baseCursos.map(c => `
+            <div style="padding:10px; border-bottom:1px solid #eee; display:flex; justify-content:space-between; align-items:center;">
+                <span>${c.nombre}</span>
+                <div>
+                    <button class="btn btn-edit" onclick="cargarEdit(${c.id})"><i class="material-icons">edit</i></button>
+                    <button class="btn btn-borrar" onclick="borrarCurso(${c.id})"><i class="material-icons">delete</i></button>
+                </div>
+            </div>`).join(''); 
+    }
+
+    function cargarEdit(id) { 
+        const c = baseCursos.find(x => x.id == id); 
+        document.getElementById('idEditCurso').value = c.id; 
+        document.getElementById('admNombre').value = c.nombre; 
+        document.getElementById('admContenido').value = c.contenido; 
+    }
+
+    async function borrarCurso(id) { 
+        if(!confirm("¿Borrar de la nube definitivamente?")) return;
+        document.getElementById('sync-loader').style.display = 'inline';
+        
+        await fetch(WEB_APP_URL, {
+            method: 'POST',
+            mode: 'no-cors',
+            body: JSON.stringify({ id: id, action: 'delete' })
+        });
+        
+        await sincronizarCursosNube();
+    }
+
+    function limpiarAdmin() { 
+        document.getElementById('idEditCurso').value = ""; 
+        document.getElementById('admNombre').value = ""; 
+        document.getElementById('admContenido').value = ""; 
+    }
+
+    function renderHistorial() { document.getElementById('logHistorial').innerHTML = historialCompleto.map(h => `<div class="history-item"><div><strong>${h.nombreFile}</strong><br><small>${h.data.fecha} | ${h.data.participantes.length} pers.</small></div><div class="history-actions"><button class="btn btn-edit" onclick='cargarHistorialParaEditar(${h.id})'><i class="material-icons">edit</i></button><button class="btn btn-save" onclick='redescargar(${h.id})'><i class="material-icons">download</i></button><button class="btn btn-borrar" onclick='eliminarHistorial(${h.id})'><i class="material-icons">delete</i></button></div></div>`).reverse().join(''); }
+
+    window.onload = init;
+</script>
+</body>
+</html>
